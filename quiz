@@ -1,0 +1,59 @@
+#!/usr/bin/python3
+import yaml
+from yaml import CLoader as Loader
+from random import shuffle
+from os import system
+
+core = ""
+with open("studyguide.yml") as f:
+    for line in f:
+        core += line
+AWS = yaml.load(core, Loader=Loader)
+del(core)
+
+def get_name(service):
+    return list(service.keys())[0]
+
+def format_question(color, prompt):
+    END = "\033[0m"
+    return "Question - {0}{1}{2}".format(color, prompt, END)
+
+def format_answer(color, answer):
+    END = "\033[0m"
+    return "{0}{1}{2}".format(color, answer, END) 
+
+def format_clue(q_type, service):
+    return "{0}:\n{1}".format(q_type, service[q_type])
+
+def quiz_me(service, i, is_topic=False, service_name=""):
+    blue = "\033[94m"
+    green = "\033[92m"
+    q_types = ("description", "use case")
+    name = get_name(service)
+    system("clear")
+    print(format_question(
+        green if is_topic else blue,
+        "name that topic of {0}".format(service_name) if is_topic else "name that service"
+    ))
+    print(format_clue(q_types[i], service[name]))
+    input("=>")
+    print(format_answer(green if is_topic else blue, name))
+    if service[name].get("notes") is not None:
+        for note in service[name]["notes"]:
+            print("- {0}".format(note))
+    input("=>")
+    i = int(not i)
+    if service[name].get("topics") is not None:
+        shuffle(service[name]["topics"])
+        for topic in service[name]["topics"]:
+            quiz_me(topic, i, is_topic=True, service_name=name)
+            i = int(not i)
+
+if __name__ == "__main__":
+    i = 0
+    shuffle(AWS["services"])
+    for service in AWS["services"]:
+        quiz_me(service, i)
+        i = int(not i)
+    system("clear")
+    print("well done! ^.^")

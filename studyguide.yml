@@ -1,0 +1,544 @@
+global infrastructure:
+    - Regions:
+        description: a geographic area logically and physically isolated from other AWS regions
+        use case: if one region goes down, host your resources in another will be okay, host resources close too clients
+        notes:
+            - A Region has at least two AZs
+    - Availability Zones:
+        description: a physical data center within a region
+        use case: host applications in a secure location with low-latency connections to other data centers in the same region
+        notes:
+            - Amazon randomizes AZs within a Region, so each account's us-east-1a is different
+    - Edge Locations:
+        description: data centers that cache resources closer to clients
+        use case: cache server responses for lower-latency
+        notes:
+            - used with CloudFront
+services:
+    - EC2:
+        description: virtual machines in the cloud
+        use case: servers
+        notes:
+            - launch into an AZ
+            - default login with SSH
+            - you cannot encrypt root volumes at launch time
+        topics:
+            - EBS:
+                description: virtual volumes in the cloud
+                use case: root volumes, snapshots
+                notes:
+                    - General Purpose (SSD) -> most workloads
+                    - Provisioned IOPS (SSD) -> databases
+                    - Throughput Optimised (HDD) -> big data & warehousing
+                    - Cold (HDD) -> file servers
+                    - Magnetic -> infrequently accessed data
+            - Load Balancers:
+                description: virtual load balancers in the cloud
+                use case: distribute requests across multiple EC2 instances
+                notes:
+                    - cross-zone load balancing helps distribute requests across AZs with different numbers of instances
+                    - path-patterns let you route traffic to specific instances or AZs depending on the URL path
+                topics:
+                    - Application:
+                        description: highly configurable load balancer for EC2 instances
+                        use case: most load balancer use cases, HTTP and HTTPS
+                        notes:
+                            - operates at layer 7
+                            - listeners can implement complex if/then logic
+                            - sticky sessions bind a single user's traffic to a single instance
+                    - Network:
+                        description: highly optimized load balancer
+                        use case: TCP traffic where extreme performance is required
+                        notes:
+                    - Classic:
+                        description: legacy load balancer that is a bit cheaper
+                        use case: forward requests to non-AWS resources
+                        notes:
+                            - operates at layer 7
+                            - uses X-Forwarded-For to get original client IP
+            - Security Groups:
+                description: firewalls for AWS resources
+                use case: whitelist IP ranges for EC2, RDS, Lambda etc.
+                notes:
+                    - you cannot have an explicit deny in an SG, for that you need a NACL
+            - Auto Scaling Groups:
+                description: a collection of EC2 instances that are treated as a logical group for the purposes of management and scaling out
+                use case: increase number of servers when traffic is high, decrease number of servers when traffic is low
+                notes:
+            - Launch Configurations:
+                description: template to launch an instance into an ASG
+                use case: blue/green deployments, rollback
+                notes:
+            - AMI:
+                description: machine images
+                use case: cut images of EC2 instances, or create images from snapshots
+                notes:
+                    - use community AMIs for nat instsances and bastion hosts
+                    - usually EBS backed
+            - Instance Store:
+                description: machine images from S3
+                use case: legacy, was maybe slightly more optimized back in the early days of AWS
+                notes:
+                    - ephemeral storage
+                    - cannot be stopped, only terminated or rebooted
+                    - additional instance store volumes cannot be added ever to an instance, additional EBS volumes can be added later though
+                    - when the instance terminates the root volume cannot be kept
+            - User Data:
+                description: bootstrap script for EC2 instances
+                use case: start services, run updates, create files or directories at boot
+                notes:
+                    - also called boostrap scripts
+                    - user data is available through metadata
+                    - bootstrap scripts can be passed in a flag as a file to instances created through the CLI
+            - Metadata:
+                description: metadata about EC2 instances
+                use case: get IP, instance ID, ASG etc. for applications
+                notes:
+                    - available on EC2 instances at http://169.254.169.154/latest/[user-data, meta-data]
+            - Placement Groups:
+                description: allocate EC2 instances on the same underlying hardware or seperate hardware
+                use case: instances that need super-low latency to connect, or instances that need to be completely isolated for business purposes
+                notes:
+                    - clustered
+                    - spread
+                    - placement groups cannot be merged
+                    - you can move an already running instance into a placement group
+            - Instance Types:
+                description: EC2 instances optimized for specific workloads
+                use case: GPU optimized, storage optimized or memory optimized EC2 instances
+                notes:
+                    - FIGHT DR MCPXZ AU (mnuemonic to help remember the types)
+            - On Demand:
+                description: the standard pricing model for EC2
+                use case: no upfront payment pricing model for EC2 usage, workloads that cannot be interrupted
+                notes:
+            - Reserved:
+                description: pay-up-front pricing model for EC2
+                use case: pricing model for applications with predictable usage
+                notes:
+            - Spot:
+                description: bid for instance usage pricing model
+                use case: pricing model for interruptable workloads
+                notes:
+            - Dedicated Hosts:
+                description: pricing model for instances that need to run on dedicated hardware
+                use case: pricing model for strict licensing on EC2, i.e. Oracle or Microsoft
+                notes:
+    - Lambda:
+        description: serverless architecture
+        use case: loosely coupled, invocation-based microservices
+        notes:
+            - supports Python, Node, Ruby, C#, Golang, Powershell
+            - priced by request count and duration
+            - scales out, not up!
+            - usually triggered by CloudWatch, S3, EC2 or API Gateway
+            - RDS cannot trigger Lambda at this time
+    - Elastic Beanstalk:
+        description: easy-to-use service for deploying and scaling applications, similar to Heroku
+        use case: developers who want to deploy code without knowing about EC2
+        notes:
+            - handles autoscaling for you
+    - S3:
+        description: (pretty much) unlimited object storage in the cloud
+        use case: store images, videos, files etc.
+        notes:
+            - files can be 0 bytes to 5 TB
+            - S3 is a universal namespace so bucket names must be unique
+            - S3 responds with an HTTP 200 upon successful uploading of an object
+            - is technically serverless
+        topics:
+            - Standard:
+                description: the most common S3 storage
+                use case: frequently accessed images, videos or files
+                notes:
+            - Standard IA:
+                description: cheaper than standard, pay for objects you request
+                use case: older versions of objects, things you only need sometimes
+                notes:
+            - One Zone/Reduced Redundancy:
+                description: store all object in one AZ in one region
+                use case: low pricing for things that you are okay with losing in case of a data center outage
+                notes:
+            - Intelligent Tiering:
+                description: AWS ML transitions objects to different storage tiers intelligently
+                use case: let AWS take the wheel on pricing and access
+                notes:
+            - Glacier:
+                description: very infrequently accessed objects, with requests taking minutes to hours
+                use case: archival records, reports
+                notes:
+            - Glacier Deep Archive:
+                description: extremely infrequently access objects, with requests taking at least 12 hours
+                use case: objects that you, for all intents and purposes, never need to actually read, but just keep for legal reasons or something
+                notes:
+            - Encryption:
+                description: encrypt objects at rest
+                use case: keep objects stored in S3 secure at rest
+                notes:
+                    - S3 managed keys
+                    - Amazon KMS
+                    - customer provided keys
+                    - good in the case that someone breaks into the AWS data center and steals the hardware your data is on
+                    - comes at no additional cost
+            - Versioning:
+                description: store multiple versions of one object
+                use case: roll back to previous versions of an object
+                notes:
+                    - once enabled it cannot be disabled only suspended
+                    - deleting an object only puts the delete marker on it
+                    - MFA delete can prevent actual deletion of objects
+                    - older versions of objects can have different permissions than the current object
+                    - use a lifecycle policy to retire old versions
+            - Lifecycle Management:
+                description: automate changing storage tiers and deleting old versions of objects
+                use case: optimize spending by moving older and infrequently accessed objects to different storage tiers automatically
+                notes:
+                    - can clean up multi-part uploads
+            - Cross-Region Replication:
+                description: replicate buckets in other regions
+                use case: store important objects across the globe
+                notes:
+                    - when you set up CRR, existing objects are not automatically replicated, only new objects
+                    - you can set it to change storage class in the new location
+                    - delete markers are not replicated to the new region
+                    - versioning must be enabled on both the source and destination buckets
+            - Transfer Acceleration:
+                description: upload files to S3 faster using Amazon's backbone network
+                use case: let clients upload larger files faster to S3
+                notes:
+                    - works by using Edge Locations
+    - EFS:
+        description: filesystems in the cloud
+        use case: attach one filesystem to multiple EC2 instances
+        notes:
+            - support for NFSv4 protocol
+            - can scale up to thousands of concurrent connections
+            - read after write consistency
+            - no need to pre-provision storage like EBS
+    - Storage Gateway:
+        description: secure and seamless data transfer between on-premise data centers and AWS
+        use case: backup and archiving of on-prem data with S3
+        notes:
+            - File Gateway -> for object storage
+            - Volume Gateway -> for data backup, uses iSCSI, asynch
+            - Tape Gateway -> replace on prem tape archives
+    - RDS:
+        description: virtual relational databases in the cloud
+        use case: spin up and scale up databases in minutes, never worry about the underlying OS
+        notes:
+            - supports Aurora, MySQL, PostgresQL, Oracle, MariaDB, Microsoft SQL Server
+            - multi AZ is not a read replica, it is a full replica
+            - can use security groups, edit the security groups to allow traffic from EC2 for example
+            - runs on virtual machines
+            - you cannot SSH into RDS
+            - RDS is not serverless (except for Aurora serverless)
+        topics:
+            - Replicas:
+                description: copies of a database
+                use case: alternates of a DB for failover, take a load off a DB instance by letting reads go somewhere else
+                notes:
+                    - automated backups by default with retention up to 35 days and free storage up to the size of the DB
+                    - snapshot backups are user initiated and persist after the DB instance is terminated
+                    - up to 5 read replicas (except Aurora which can do 15)
+            - Aurora:
+                description: Amazon's version of MySQL
+                use case: a better version of MySQL in the cloud
+                notes:
+                    - up to 5 times better performance than MySQL
+                    - 1/10 the cost of a typical SQL database
+                    - can scale out to 32 vCPUs
+                    - always retains 6 copies of your DB in 3 AZs
+                    - extremely highly available
+                    - backups and snapshots do not impact performance
+    - DynamoDB:
+        description: a virtual non-relational database in the cloud
+        use case: key-value based SSD storage with single digit latency at any scale
+        notes:
+            - stored on SSD
+            - spread across 3 regions
+            - eventually consistent reads (within 1 second)
+            - strongly consistent reads (with less than 1 second)
+    - ElastiCache:
+        description: virtual in memory databases in the cloud
+        use case: take a load off databases by caching frequently accessed queries, lower-latency
+        notes:
+            - memcached for simple data types, scales out
+            - redis for complex data types, mutli AZ and backup restore
+    - Redshift:
+        description: data warehousing in the cloud
+        use case: online analytic processing, run queries across massive and dissimilar data sets
+        notes:
+            - starts at 25 cents an hour
+            - single-node and multi-node types
+            - advanced columnar compression
+            - doesn't require indexes
+            - encrypted in transit and at rest
+    - Snowball:
+        description: petabyte-scale data transport solution
+        use case: partial data center backup or migration
+        notes:
+            - tamper-resistant enclosure
+            - 256-bit encryption
+            - can cluster together to form local storage tiers
+            - imports and exports to and from S3
+    - Snowmobile:
+        description: exabyte-scale data trasport solution
+        use case: full data center backup or migration
+        notes:
+            - 45 foot flatbed truck
+            - never underestimate the throughput of an 18-wheeler
+    - VPC:
+        description: virtual data center in the cloud
+        use case: manage networking
+        notes:
+            - vpc peering lets you connect one vpc to another (both within and between accounts)
+            - largest cidr block allowed is 10.0.0.0/16
+        topics:
+            - IGW:
+                description: virtual internet gateway for AWS resources
+                use case: allow internet access to AWS resources
+                notes:
+                    - one per VPC
+            - Routing Table:
+                description: virtual routing tables
+                use case: route EC2 requests locally, to an IGW, or through a NAT Gateway
+                notes:
+                    - point 0.0.0.0/0 to IGW for public
+                    - point 0.0.0.0/0 to NAT for private
+            - NACL:
+                description: control what IP ranges are accessible from and to AWS resources
+                use case: whitelist and blacklist IP ranges for HTTP, SSH, MySQL etc.
+                notes:
+                    - allow ephemeral ports for most practical use cases
+                    - Amazon recomends rules go in increments of 100s
+                    - everything is denied by default
+                    - allows explicit denies (unlike Security Groups)
+                    - rules are evaluated in order
+                    - NACLs always act first before Security Groups
+            - NAT:
+                description: elastic network address translation
+                use case: allow internet access to resources inside a private subnet
+                notes:
+                    - each NAT gateway lives in one AZ, so put one in each AZ and have resources talk to the one they are near
+                    - highly available
+                    - no need to patch
+                    - if you delete the NAT gateway the routing table will say blackhole
+            - Security Groups:
+                description: firewalls for AWS resources
+                use case: whitelist IP ranges for EC2, RDS, Lambda etc.
+                notes:
+                    - cannot span VCPs
+            - Subnets:
+                description: virtual subnets within a VPC
+                use case: create public private IP ranges for resources within your VPC
+                notes:
+                    - a subnet belongs to a single AZ, an AZ can have many subnets
+                    - Amazon always reserves 5 addresses within a subnet
+                    - auto-assign public IP is turned off by default
+            - Flow Logs:
+                description: logs or (mostly) all requests that happen to a VPC
+                use case: security, monitoring, auditing of traffic into, out of and within your VPC
+                notes:
+                    - you cannot add tags to a flow log
+                    - it doesn't monitor some confidential stuff, like connections between you and MS when you confirm a license
+                    - after creation the configuration cannot be changed
+            - Bastions:
+                description: an instance running in a public subnet is hardened to withstand attacks but also allow SSH admin access
+                use case: allow SSH admin access to private subnet resources
+                notes:
+                    - also called a jump box
+                    - you cannot use a NAT gateway as a bastion host
+                    - you can get bastion AMIs from the AWS community AMIs
+            - Endpoints:
+                description: internaly accessible endpoints for AWS resources
+                use case: route requests to an S3 bucket inside you VPC, not over the public internet
+                notes:
+                    - interface endpoints
+                    - gateway endpoints
+    - CloudFront:
+        description: content delivery network
+        use case: cache frequently access data in AWS edge locations
+        notes:
+            - origin can be S3, EC2, ELB or Route53
+            - cached for the TTL, which is always in seconds
+            - supports web distributions and Adobe RTMP protocol
+            - uses Edge Locations
+            - you can restrict access using signed URLs
+            - you can set up a WAF for a distribution
+            - deployment takes 15 minutes to an hour
+            - invalidation costs you, /* would invalidate everything
+    - Route53:
+        description: elastic DNS solution
+        use case: purchase and configure domains, automate health checks and failovers
+        notes:
+            - DNS runs on port 53 that's why
+            - you'll never get an IPv4 for an ELB
+            - it can take up to 3 days to register a domain name
+            - routing -> simple, weighted, latency-based, failover, geolocation, geoproximity, multi-value answer (for health checks)
+    - Direct Connect:
+        description: a dedicated line between a data center and AWS
+        use case: send high volume workloads quickly and securely to the cloud through dedicated lines
+        notes:
+            - AWS Cage links to Customer Cage in DX location
+    - X-Ray:
+        description: end-to-end debugging and analysis of distributed systems
+        use case: debug why a complex AWS environment isn't working
+        notes:
+    - CloudWatch:
+        description: monitor metrics, events and logs
+        use case: track HTTP codes and vCPU usage in a dashboard, trigger alarms when thresholds are crossed
+        notes:
+            - standard monitoring is 5 minute intervals by default
+            - deatiled monitoring is 1 minute intervals but costs you extra
+            - is not cloudtrail!
+    - CloudFormation:
+        description: stack templates
+        use case: infrastructure as code, deploy environments with one click
+        notes:
+    - CloudTrail:
+        description: track users' API calls to AWS 
+        use case: auditing user activity in your AWS account
+        notes:
+    - Config:
+        description: assess AWS resource configuration
+        use case: compare intended resource usage with actual resource usage and make improvements
+        notes:
+    - Trusted Advisor:
+        description: automate compliance and ensure best practices
+        use case: right-size EC2 instances, get better S3 pricing, ensure security etc.
+        notes:
+            - cost optimization
+            - performance
+            - security
+            - fault tolerance
+            - service limits
+    - Elastic Transcoder:
+        description: media transcoding
+        use case: make a video playable on all devices and formats
+        notes:
+            - provides defaults for most common devices to eliminate guess work
+            - pay by the minute
+    - Athena:
+        description: serverless S3 log queries
+        use case: query S3 logs, pay by the query
+        notes:
+    - EMR:
+        description: run big data frameworks in EC2
+        use case: hadoop, apache spark, presto
+        notes:
+    - Kinesis:
+        description: collect, process and analyze streaming data
+        use case: handle a constant influx of geolocation data, IoT data, or moving stock prices
+        notes:
+        topics:
+            - Streams:
+                description: process stream data with 24-hours of persistent storage
+                use case: IoT streaming data than cn be processed not immediately
+                notes:
+                    - data is contained in shards
+                    - consumers process the data
+            - Firehose:
+                description: process stream data with no persistent storage
+                use case: streaming data that needs to be process immediately
+                notes:
+                    - usually used with Lambda
+            - Analytics:
+                description: analyze streaming data inside Streams or Firehose
+                use case: analyze any streaming data
+                notes:
+                    - output can be stored in Redshift
+    - AWS Glue:
+        description: AWS's extract transform, load (ETL) service
+        use case: prepare file dumps to be queried by Athena
+        notes:
+    - IAM:
+        description: manage access to AWS resources
+        use case: give developers limited access to AWS resources, give sysadmins slightly more access
+        notes:
+        topics:
+            - MFA:
+                description: mutlifactor authentication
+                use case: two-step login, two-step S3 object deletion
+                notes:
+                    - virtual MFA is most common
+                    - physical tokens are possible but not provided by Amazon
+                    - always set up MFA on the root account
+            - policies:
+                description: JSON documents that detail access to AWS resources
+                use case: allow/deny specific actions on AWS resources with granular precision
+                notes:
+                    - written in JSON
+            - users:
+                description: human beings in AWS terms
+                use case: a developer using AWS, a sysadmin using AWS, a human using AWS
+                notes:
+                    - users have no permissions by default
+                    - you only get to view credentials once after creating them
+            - groups:
+                description: a collection of users
+                use case: allow groups of users similar permissions
+                notes:
+            - roles:
+                description: allow one AWS resource to have access to another
+                use case: allow EC2 to access S3
+                notes:
+    - Cognito:
+        description: identity federation, sign-up and sign-in services
+        use case: let users sign in with Facebook, Google, or Amazon
+        notes:
+            - user pools are for users
+            - identity pools are for temporary access to AWS resources
+            - reccomended for all mobile applications
+            - a broker between AWS, you and big identity companies
+    - Certificate Manager:
+        description: manage SSL/TLS certificates
+        use case: upload credentials for HTTPS traffic
+        notes:
+    - Key Management Service:
+        description: create and manage encryption keys
+        use case: store S3 encryption keys
+        notes:
+    - WAF and Shield:
+        description: firewalls and DDoS protection
+        use case: protect against denial of service attacks, SQL injection and cross-site scripting
+        notes:
+    - API Gateway:
+        description: manage application interfaces
+        use case: direct URL paths to different AWS resources
+        notes:
+            - frontdoor to an application
+            - highly available
+            - can enable CORS
+    - SNS:
+        description: push-based notification service
+        use case: send SMS, email, alert subscribers, trigger lambda functions
+        notes:
+            - subscribers receive the notifications
+            - topics can be subscibed to in order to receive notifications
+            - stored redundantly across AZs
+            - push-based (not poll-based like SQS)
+        topics:
+    - SQS:
+        description: poll-based distributed queue service
+        use case: ensure that messages are processed at least once by EC2 workers
+        notes:
+        topics:
+            - Standard Queues:
+                description: perhaps unordered queue
+                use case: queues where order doesn't matter, might get processed twice
+                notes:
+                    - has best effort ordering
+                    - might deliver messages twice
+            - FIFO Queues:
+                description: ordered queue
+                use case: queues where order matters, can only be processed once
+                notes:
+                    - ordered (first in first out)
+                    - exactly one-time processing
+                    - 300 transactions per second
+    - SWF:
+        description: task coordinator
+        use case: coordinate a purchase on amazon with a warehouse worker finding and packaging it
+        notes:
+            - task-oriented API, not message-based like SQS)
+            - workflow executions can last up to 1 year
