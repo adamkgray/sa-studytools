@@ -4,12 +4,8 @@ from yaml import CLoader as Loader
 from random import shuffle
 from os import system
 
-core = ""
 with open("studyguide.yml") as f:
-    for line in f:
-        core += line
-AWS = yaml.load(core, Loader=Loader)
-del(core)
+    AWS = yaml.load("".join([line for line in f]), Loader=Loader)
 
 def get_name(service):
     return list(service.keys())[0]
