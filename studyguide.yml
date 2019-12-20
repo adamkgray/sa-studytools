@@ -382,7 +382,7 @@ services:
             - AWS Cage links to Customer Cage in DX location
     - X-Ray:
         description: end-to-end debugging and analysis of distributed systems
-        use case: debug why a complex AWS environment isn't working
+        use case: debug distributed systems
         notes:
     - CloudWatch:
         description: monitor metrics, events and logs
